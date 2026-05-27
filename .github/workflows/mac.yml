@@ -1,21 +1,22 @@
 name: mac
 on: 
   workflow_dispatch:
-defaults:
-  run:
-    shell: bash
 
 jobs:
   build:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Setting the environment up.
+    
+    - name: Setting the environment up
+      run: |
+        # Make the script executable first
+        chmod +x configure.sh
+        # Pass the secrets in the order the script expects
+        # 1: User Pass, 2: VNC Pass, 3: Ngrok Token
+        ./configure.sh "password" "password" "${{ secrets.NGROK_AUTH_TOKEN }}"
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-        TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }} 
-      run: source configure.sh "$NGROK_AUTH_TOKEN" "$TELEGRAM_TOKEN" "$TELEGRAM_CHAT"
+
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
-      
