@@ -26,12 +26,8 @@ echo $2 | perl -we 'BEGIN { @k = unpack "C*", pack "H*", "1734516E8BA8C5E2FF1C39
 sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -restart -agent -console
 sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate
 
-# 6. Install ngrok using the correct modern formula/cask structurebrew install ngrok
-curl -sSOL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-darwin-amd64.zip
-unzip -o ngrok-v3-stable-darwin-amd64.zip
-sudo mv ngrok /usr/local/bin/
-
-rm ngrok-v3-stable-darwin-amd64.zip
+# 6. Install ngrok 
+brew install --cask install
 # 7. Configure ngrok and start it
 ngrok authtoken $3
 ngrok tcp 5900 &
