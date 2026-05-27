@@ -17,4 +17,5 @@ jobs:
         TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }} 
       run: source configure.sh "$NGROK_AUTH_TOKEN" "$TELEGRAM_TOKEN" "$TELEGRAM_CHAT"
     - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v2
+      uses: mxschmitt/action-tmate@v3
+      
