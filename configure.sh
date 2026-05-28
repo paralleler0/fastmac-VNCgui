@@ -1,39 +1,67 @@
 #!/bin/bash
 # Usage: ./configure.sh VNC_USER_PASSWORD VNC_PASSWORD NGROK_AUTH_TOKEN
 
-# 1. Disable spotlight
-sudo mdutil -i off -a
+set -e
 
-# 2. Create new account 
-cd /tmp
-sudo dscl . -create /Users/vncuser
-sudo dscl . -create /Users/vncuser UserShell /bin/bash
-sudo dscl . -create /Users/vncuser RealName "VNC User"
-sudo dscl . -create /Users/vncuser UniqueID 1001
-sudo dscl . -create /Users/vncuser PrimaryGroupID 80
-sudo dscl . -create /Users/vncuser NFSHomeDirectory /Users/vncuser
-echo "$1" | sudo dscl . -passwd /Users/vncuser
-sudo dseditgroup -o edit -a vncuser -t user admin
-sudo createhomedir -c -u vncuser > /dev/null
+VNC_USER="vncuser"
 
-# 3. Enable VNC
-sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -configure -allowAccessFor -allUsers -privs -all
-sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -configure -clientopts -setvnclegacy -vnclegacy yes
+sudo mdutil -i off -a || true
 
-# 4. Set VNC password
-echo "$2" | perl -we 'BEGIN { @k = unpack "C*", pack "H*", "1734516E8BA8C5E2FF1C39567390ADCA"}; $_ = <>; chomp; s/^(.{8}).*/$1/; @p = unpack "C*", $_; foreach (@k) { printf "%02X", $_ ^ (shift @p || 0) }; print "\n"' | sudo tee /Library/Preferences/com.apple.VNCSettings.txt > /dev/null
+echo "[2/6] Creating user safely..."
 
-# 5. Start VNC
-sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -restart -agent -console
-sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate
+# Get next available UID (avoids collisions)
+NEXT_UID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -1)
+NEXT_UID=$((NEXT_UID + 1))
 
-# 6. Install Ngrok 
-curl -Lk https://bin.equinox.io/c/b34236/ngrok-v3-stable-darwin-arm64.zip -o ngrok.zip
+sudo dscl . -create /Users/$VNC_USER
+sudo dscl . -create /Users/$VNC_USER UserShell /bin/bash
+sudo dscl . -create /Users/$VNC_USER RealName "VNC User"
+sudo dscl . -create /Users/$VNC_USER UniqueID "$NEXT_UID"
+sudo dscl . -create /Users/$VNC_USER PrimaryGroupID 20
+sudo dscl . -create /Users/$VNC_USER NFSHomeDirectory /Users/$VNC_USER
+
+echo "$1" | sudo dscl . -passwd /Users/$VNC_USER
+sudo createhomedir -c -u $VNC_USER > /dev/null
+
+VNC_PATH="/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart"
+
+sudo "$VNC_PATH" -configure -allowAccessFor -specifiedUsers
+sudo "$VNC_PATH" -configure -users $VNC_USER
+sudo "$VNC_PATH" -configure -clientopts -setvnclegacy -vnclegacy yes
+
+VNC_PASS_SHORT="${2:0:8}"
+
+echo "$VNC_PASS_SHORT" | perl -we '
+BEGIN {
+  @k = unpack("C*", pack("H*", "1734516E8BA8C5E2FF1C39567390ADCA"));
+}
+$_ = <STDIN>;
+chomp;
+s/^(.{8}).*/$1/;
+@p = unpack("C*", $_);
+foreach (@k) {
+  printf "%02X", $_ ^ (shift @p || 0);
+}
+print "\n";
+' | sudo tee /Library/Preferences/com.apple.VNCSettings.txt > /dev/null
+
+sudo "$VNC_PATH" -restart -agent -console
+sudo "$VNC_PATH" -activate
+
+ARCH=$(uname -m)
+
+if [ "$ARCH" = "arm64" ]; then
+  NGROK_URL="https://bin.equinox.io/c/b34236/ngrok-v3-stable-darwin-arm64.zip"
+else
+  NGROK_URL="https://bin.equinox.io/c/b34236/ngrok-v3-stable-darwin-amd64.zip"
+fi
+
+curl -L "$NGROK_URL" -o ngrok.zip
 unzip -o ngrok.zip
 chmod +x ./ngrok
 sudo mv ./ngrok /usr/local/bin/ngrok
 rm ngrok.zip
 
-# 7. Configure and Start
-/usr/local/bin/ngrok authtoken "$3"
-/usr/local/bin/ngrok tcp 5900 --log=stdout &
+ngrok config add-authtoken "$3"
+
+/usr/local/bin/ngrok tcp 5900 --log=stdout > ngrok.log &
