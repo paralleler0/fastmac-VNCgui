@@ -7,9 +7,6 @@ VNC_USER="vncuser"
 
 sudo mdutil -i off -a || true
 
-echo "[2/6] Creating user safely..."
-
-# Get next available UID (avoids collisions)
 NEXT_UID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -1)
 NEXT_UID=$((NEXT_UID + 1))
 
@@ -51,15 +48,20 @@ sudo "$VNC_PATH" -activate
 ARCH=$(uname -m)
 
 if [ "$ARCH" = "arm64" ]; then
-  NGROK_URL="https://bin.equinox.io/c/b34236/ngrok-v3-stable-darwin-arm64.zip"
+  URL="https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-darwin-arm64.zip"
 else
-  NGROK_URL="https://bin.equinox.io/c/b34236/ngrok-v3-stable-darwin-amd64.zip"
+  URL="https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-darwin-amd64.zip"
 fi
 
-curl -L "$NGROK_URL" -o ngrok.zip
+curl -L "$URL" -o ngrok.zip
+
+file ngrok.zip
+
 unzip -o ngrok.zip
-chmod +x ./ngrok
-sudo mv ./ngrok /usr/local/bin/ngrok
+
+chmod +x ngrok
+sudo mv ngrok /usr/local/bin/ngrok
+
 rm ngrok.zip
 
 ngrok config add-authtoken "$3"
